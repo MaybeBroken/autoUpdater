@@ -55,3 +55,9 @@ def run(urlList: list, clearCache: bool = True, postExecution: bool = True):
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(f"Error: {e} at {fname}, line {exc_tb.tb_lineno}")
+
+
+def checkForUpdates(
+    urlList: list[str, str], currentVersionList: list[str, str | int | float | bytes]
+):
+    raise NotImplementedError("This function is not implemented yet")
