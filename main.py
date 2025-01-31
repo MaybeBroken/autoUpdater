@@ -1,36 +1,40 @@
-import urllib.request
 import subprocess
 import os
 import sys
 import shutil
+from github import Github
+
+reporthook = (
+    lambda blocknum, blocksize, totalsize: print(
+        f"\033[92mDownloaded {blocknum * blocksize}/{totalsize}\033[0m: {str("0"*int((2-int((100/totalsize)*(blocknum*blocksize))-1/10))) + str(round((100/totalsize)*(blocknum*blocksize), 2))[0:4]}% [{"\033[92m#\033[0m" * int((blocknum * blocksize) / totalsize * 100)}{' ' * (100 - int(int((blocknum * blocksize)) / totalsize * 100))}]",
+        end="\r",
+    ),
+)
 
 
-def run(urlList: list, clearCache: bool = True, postExecution: bool = True):
+def run(urlList: list[str, str], postExecution: bool = True):
     try:
-        for key in urlList:
-            print(f"Downloading {key} from {urlList[key]}\n")
-            if os.path.exists(key):
-                os.remove(key)
-            urllib.request.urlretrieve(
-                urlList[key],
-                f"{key}-temp",
-                reporthook=lambda blocknum, blocksize, totalsize: print(
-                    f"\033[92mDownloaded {blocknum * blocksize}/{totalsize}\033[0m: {str("0"*int((2-int((100/totalsize)*(blocknum*blocksize))-1/10))) + str(round((100/totalsize)*(blocknum*blocksize), 2))[0:4]}% [{"\033[92m#\033[0m" * int((blocknum * blocksize) / totalsize * 100)}{' ' * (100 - int(int((blocknum * blocksize)) / totalsize * 100))}]",
-                    end="\r",
-                ),
-            )
-            print(f"Downloaded {key}")
+        gh = Github()
+        for url, name in urlList:
+            repo = gh.get_repo(url)
+            print(f"Downloading {name} from {url}\n")
+            if os.path.exists(name):
+                os.remove(name)
+                print(f"Removed existing {name}")
 
-        filePath: str
-        for filePath in urlList:
-            newFilePath = filePath.removesuffix("-temp")
-            shutil.copy(f"{filePath}-temp", newFilePath)
-            print(f"Renamed {filePath}-temp to {newFilePath}")
-            print(f"File located at: {os.path.abspath(newFilePath)}")
-            if clearCache:
-                print(f"Clearing cache for {filePath}")
-                os.remove(filePath + "-temp")
-                print(f"Cache cleared for {filePath}")
+            for release in repo.get_releases():
+                for asset in release.get_assets():
+                    if asset.name != name:
+                        continue
+                    print(f"Downloading {asset.name} from {release.tag_name}")
+                    asset.download_asset(name, reporthook=reporthook)
+                    break
+                break
+
+            print(f"Downloaded {name} from {url}\n")
+
+        newFilePath: str
+        for newFilePath in urlList:
             if postExecution:
                 if newFilePath.endswith(
                     (".exe", ".msi", ".bat", ".app", ".sh", ".pkg")
@@ -57,7 +61,4 @@ def run(urlList: list, clearCache: bool = True, postExecution: bool = True):
         print(f"Error: {e} at {fname}, line {exc_tb.tb_lineno}")
 
 
-def checkForUpdates(
-    urlList: list[str, str], currentVersionList: list[str, str | int | float | bytes]
-):
-    raise NotImplementedError("This function is not implemented yet")
+run([("MaybeBroken/Python-Installer", "Python-Installer.exe")])
