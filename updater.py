@@ -7,6 +7,12 @@ import ctypes
 from colorama import init, Fore, Style
 from time import sleep
 
+if not sys.platform == "win32":
+    print("This script is only supported on Windows")
+    sleep(0.2)
+    exit()
+
+
 # Initialize colorama
 init()
 
