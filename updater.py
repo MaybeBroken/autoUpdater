@@ -27,28 +27,24 @@ class PACKAGE:
         self.date = _dict.get("currentReleaseDate")
 
 
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-
-if not is_admin():
-    ctypes.windll.shell32.ShellExecuteW(
-        None, "runas", sys.executable, " ".join(sys.argv), None, 1
-    )
-    exit()
-
-
 def download_report_hook(count, block_size, total_size):
-    percent = int(count * block_size * 100 / total_size)
-    print(f"\rDownloading: {percent}%", end="")
+    percent = min(int(count * block_size * 100 / total_size), 100)
+    bar_length = 40
+    filled_length = int(bar_length * percent / 100)
+    bar = "▓" * filled_length + "░" * (bar_length - filled_length)
+    print(
+        f"\rDownloading: |{Fore.GREEN}{bar}{Style.RESET_ALL}| {Fore.CYAN}{percent}%{Style.RESET_ALL}",
+        end="",
+    )
     sys.stdout.flush()
 
 
 def download_file(url: str, filename: str) -> None:
-    urllib.request.urlretrieve(url, filename, reporthook=download_report_hook)
+    try:
+        urllib.request.urlretrieve(url, filename, reporthook=download_report_hook)
+    except Exception as e:
+        print(f"\n{Fore.RED}Error downloading file [{url}]: {e}{Style.RESET_ALL}")
+        exit(1)
 
 
 def get_packages() -> list[dict]:
@@ -70,3 +66,73 @@ def build_package_index(packages: list[dict]) -> list[PACKAGE]:
 def cleanup():
     if os.path.exists("app_index.json"):
         os.remove("app_index.json")
+
+    print(f"{Fore.LIGHTYELLOW_EX}Cleaning up temporary files...{Style.RESET_ALL}")
+    cleanup()
+
+
+class get_args:
+    def __init__(self):
+        if "--name" in sys.argv:
+            self.name = sys.argv[sys.argv.index("--name") + 1]
+        else:
+            exit(f"{Fore.RED}No name provided.{Style.RESET_ALL}")
+        if "--version" in sys.argv:
+            self.version = sys.argv[sys.argv.index("--version") + 1]
+        else:
+            exit(f"{Fore.RED}No version provided.{Style.RESET_ALL}")
+        if "--file-index-path" in sys.argv:
+            self.file_index_path = sys.argv[sys.argv.index("--file-index-path") + 1]
+        else:
+            exit(f"{Fore.RED}No file index path provided.{Style.RESET_ALL}")
+
+
+if __name__ == "__main__":
+    args = get_args()
+    print(f"{Fore.LIGHTYELLOW_EX}Checking for updates...{Style.RESET_ALL}")
+    packages = get_packages()
+    package_index = build_package_index(packages)
+    print(
+        f"\n{Fore.LIGHTGREEN_EX}Found {len(package_index)} packages on server.{Style.RESET_ALL}"
+    )
+    if args.name == "":
+        exit(f"{Fore.RED}No name provided.{Style.RESET_ALL}")
+    if args.version == "":
+        exit(f"{Fore.RED}No version provided.{Style.RESET_ALL}")
+    if args.file_index_path == "":
+        exit(f"{Fore.RED}No file index path provided.{Style.RESET_ALL}")
+    downloadedFileName = None
+    for package in package_index:
+        if package.name == args.name:
+            if package.version != args.version:
+                print(f"{Fore.LIGHTYELLOW_EX}Update found!{Style.RESET_ALL}")
+                print(
+                    f"{Fore.LIGHTYELLOW_EX}Downloading {package.name}...{Style.RESET_ALL}"
+                )
+                downloadedFileName = package.name + ".zip"
+                download_file(package.url, downloadedFileName)
+
+                print(f"{Fore.LIGHTGREEN_EX}Download complete!{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.LIGHTGREEN_EX}No update found.{Style.RESET_ALL}")
+                exit(0)
+    if os.path.exists(downloadedFileName):
+        print(f"{Fore.LIGHTYELLOW_EX}Installing {args.name}...{Style.RESET_ALL}")
+        if os.path.exists(args.file_index_path):
+            os.chdir(os.path.dirname(args.file_index_path))
+            with open(args.file_index_path, "r") as f:
+                file_index = loads(f.read())
+            for file in file_index["removeList"]:
+                if os.path.exists(file):
+                    os.remove(file)
+                else:
+                    print(f"{Fore.RED}File {file} does not exist.{Style.RESET_ALL}")
+            shutil.unpack_archive(downloadedFileName, os.path.dirname(args.file_index_path))
+            print(f"{Fore.LIGHTGREEN_EX}Installation complete!{Style.RESET_ALL}")
+            os.remove(downloadedFileName)
+            cleanup()
+            exit(0)
+        else:
+            exit(f"{Fore.RED}File index path does not exist.{Style.RESET_ALL}")
+    else:
+        exit(f"{Fore.RED}Downloaded file no longer exists.{Style.RESET_ALL}")
