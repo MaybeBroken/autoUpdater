@@ -1,9 +1,7 @@
-import subprocess
 import os
 import sys
 import shutil
 import urllib.request
-import ctypes
 from colorama import init, Fore, Style
 from time import sleep
 from json import loads
@@ -80,7 +78,7 @@ def exit(message: str = None):
 
 def print_args():
     print(
-        f"{Fore.LIGHTYELLOW_EX}Usage: python updater.py --name <name> --version <version> --file-index-path <path>{Style.RESET_ALL}"
+        f"{Fore.LIGHTYELLOW_EX}Usage: [--name <name> --version <version> --file-index-path <path>]{Style.RESET_ALL}"
     )
 
 
