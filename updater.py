@@ -5,6 +5,7 @@ import urllib.request
 from colorama import init, Fore, Style
 from time import sleep
 from json import loads
+import glob
 
 userAppData = os.getenv("APPDATA")
 appId = "MaybeBroken-Software-Updater"
@@ -136,11 +137,16 @@ if __name__ == "__main__":
             os.chdir(os.path.dirname(args.file_index_path))
             with open(args.file_index_path, "r") as f:
                 file_index = loads(f.read())
-            for file in file_index["removeList"]:
-                if os.path.exists(file):
-                    os.remove(file)
+            for file_pattern in file_index["removeList"]:
+                matched_files = glob.glob(file_pattern, recursive=True)
+                if matched_files:
+                    for file in matched_files:
+                        if os.path.exists(file):
+                            os.remove(file)
+                        else:
+                            print(f"{Fore.RED}File {file} does not exist.{Style.RESET_ALL}")
                 else:
-                    print(f"{Fore.RED}File {file} does not exist.{Style.RESET_ALL}")
+                    print(f"{Fore.RED}No files matched the pattern {file_pattern}.{Style.RESET_ALL}")
             os.chdir(userAppData + "\\" + appId)
             shutil.unpack_archive(
                 downloadedFileName,
@@ -153,3 +159,6 @@ if __name__ == "__main__":
             exit(f"{Fore.RED}File index path does not exist.{Style.RESET_ALL}")
     else:
         exit(f"{Fore.RED}Downloaded file no longer exists.{Style.RESET_ALL}")
+else:
+    print(f"{Fore.RED}This script is only meant to be run directly.{Style.RESET_ALL}")
+    exit(1)
